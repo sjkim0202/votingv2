@@ -22,6 +22,27 @@
             max-width: 1000px;
             width: 100%;
             box-sizing: border-box;
+            position: relative;
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background-color: #f97b7b;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            z-index: 10;
+            transition: background-color 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background-color: #e15c5c;
         }
 
         h2 {
@@ -52,23 +73,6 @@
             color: #333;
         }
 
-        td a {
-            color: #2a5db0;
-            text-decoration: none;
-        }
-
-        td a:hover {
-            text-decoration: underline;
-        }
-
-        th:nth-child(1), td:nth-child(1) { width: 4%; }
-        th:nth-child(2), td:nth-child(2) { width: 20%; }
-        th:nth-child(3), td:nth-child(3) { width: 26%; }
-        th:nth-child(4), td:nth-child(4) { width: 18%; }
-        th:nth-child(5), td:nth-child(5) { width: 18%; }
-        th:nth-child(6), td:nth-child(6) { width: 10%; }
-        th:nth-child(7), td:nth-child(7) { width: 14%; }
-
         .action-btn {
             padding: 6px 10px;
             font-size: 13px;
@@ -87,26 +91,13 @@
             background-color: #ef3a3a;
             color: white;
         }
-        .logout-btn {
-            position: fixed;
-            top: 20px;
-            right: 30px;
-            background-color: #f97b7b;
+
+        .vote-btn {
+            background-color: #4caf50; /* 친환경 초록색 */
             color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            z-index: 1000;
-            transition: background-color 0.3s ease;
         }
 
-        .logout-btn:hover {
-            background-color: #e15c5c;
-        }
-
-        button.create-btn {
+        .create-btn {
             display: block;
             margin: 0 auto;
             background-color: #9cd2af;
@@ -119,16 +110,24 @@
             transition: background-color 0.3s ease;
         }
 
-        button.create-btn:hover {
+        .create-btn:hover {
             background-color: #85bb98;
+        }
+
+        .section-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin: 60px 0 10px;
+            color: #222;
         }
     </style>
 </head>
 <body>
-<!-- ✅ 로그아웃 버튼 영역 -->
-<button class="logout-btn" onclick="logout()">로그아웃</button>
 <div class="container">
+    <button class="logout-btn" onclick="logout()">로그아웃</button>
+
     <h2>투표 목록</h2>
+
     <table id="voteTable">
         <thead>
         <tr>
@@ -138,12 +137,26 @@
             <th>시작시간</th>
             <th>마감시간</th>
             <th>마감 여부</th>
-            <th>관리</th>
+            <th></th>
         </tr>
         </thead>
-        <tbody>
-        <!-- JS로 삽입 -->
-        </tbody>
+        <tbody></tbody>
+    </table>
+
+    <div class="section-title">마감된 투표</div>
+    <table id="endedVoteTable">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>제목</th>
+            <th>설명</th>
+            <th>시작시간</th>
+            <th>마감시간</th>
+            <th>마감 여부</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody></tbody>
     </table>
 
     <button class="create-btn" onclick="location.href='create-vote.html'">+ 새 투표 생성</button>
@@ -151,11 +164,13 @@
 
 <script>
     const accessToken = localStorage.getItem("accessToken");
+    const role = localStorage.getItem("role");
 
     function logout() {
         localStorage.removeItem("accessToken");
+        localStorage.removeItem("role");
         alert("로그아웃 되었습니다.");
-        window.location.href = "index.html"; // ✅ 로그인 페이지로 이동
+        window.location.href = "index.html";
     }
 
     function loadVotes() {
@@ -165,42 +180,89 @@
                 "Authorization": "Bearer " + accessToken
             }
         })
-            .then(response => {
-                if (!response.ok) throw new Error("투표 목록 가져오기 실패");
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 const tbody = document.querySelector("#voteTable tbody");
+                const endedBody = document.querySelector("#endedVoteTable tbody");
                 tbody.innerHTML = "";
+                endedBody.innerHTML = "";
 
                 data.forEach(vote => {
-                    const row = document.createElement("tr");
                     const now = new Date();
-                    const start = new Date(vote.startTime); // 시작 시간 객체로 변환
+                    const start = new Date(vote.startTime);
                     const isStarted = now >= start;
 
-                    const titleCell = vote.closed
-                        ? `<span style="color: gray; cursor: default;">${vote.title}</span>`
-                        : `<a href="vote-detail.html?id=${vote.id}">${vote.title}</a>`;
-                    row.innerHTML = `
-                        <td>${vote.id}</td>
-                        <td>${titleCell}</td>
-                        <td>${vote.description}</td>
-                        <td>${vote.deadline.replace("T", " ").substring(0, 16)}</td>
-                        <td>${vote.startTime.replace("T", " ").substring(0, 16)}</td>
-                        <td>${vote.closed ? "마감됨" : isStarted ? "진행 중" : "시작 전"}</td>
-                    <td>
-                        <button class="action-btn result-btn" onclick="location.href='vote-result.html?id=${vote.id}'">결과 보기</button>
-                        <button class="action-btn delete-btn" onclick="deleteVote(${vote.id})">삭제</button>
-                    </td>
-    `;
-                    tbody.appendChild(row);
+                    if (vote.closed) {
+                        renderClosedVote(vote);
+                    } else {
+                        renderOpenVote(vote, isStarted);
+                    }
                 });
+
+                if (role !== "ADMIN") {
+                    document.querySelector(".create-btn").style.display = "none";
+                }
             })
             .catch(error => {
                 console.error("오류:", error);
                 alert("투표 목록을 불러오지 못했습니다.");
             });
+    }
+
+    function renderOpenVote(vote, isStarted) {
+        const tbody = document.querySelector("#voteTable tbody");
+
+        const row = document.createElement("tr");
+        const titleCell =
+            role === "ADMIN"
+                ? `<a href="vote-detail.html?id=${vote.id}">${vote.title}</a>`
+                : `<span>${vote.title}</span>`;
+
+        let controlButtons = "";
+        if (role === "ADMIN") {
+            controlButtons = `
+        <button class="action-btn result-btn" onclick="location.href='vote-result.html?id=${vote.id}'">결과 보기</button>
+        <button class="action-btn delete-btn" onclick="deleteVote(${vote.id})">삭제</button>
+      `;
+        } else {
+            controlButtons = `
+        <button class="action-btn vote-btn" onclick="location.href='vote-detail.html?id=${vote.id}'">투표하기</button>
+      `;
+        }
+
+        row.innerHTML = `
+      <td>${vote.id}</td>
+      <td>${titleCell}</td>
+      <td>${vote.description}</td>
+      <td>${vote.startTime.replace("T", " ").substring(0, 16)}</td>
+      <td>${vote.deadline.replace("T", " ").substring(0, 16)}</td>
+      <td>${vote.closed ? "마감됨" : isStarted ? "진행 중" : "시작 전"}</td>
+      <td>${controlButtons}</td>
+    `;
+
+        tbody.appendChild(row);
+    }
+
+    function renderClosedVote(vote) {
+        const endedBody = document.querySelector("#endedVoteTable tbody");
+
+        const row = document.createElement("tr");
+
+        const controlButtons = `
+      <button class="action-btn result-btn" onclick="location.href='vote-result.html?id=${vote.id}'">결과 보기</button>
+    `;
+
+        row.innerHTML = `
+      <td>${vote.id}</td>
+      <td>${vote.title}</td>
+      <td>${vote.description || '설명이 없습니다.'}</td>
+      <td>${vote.startTime.replace("T", " ").substring(0, 16)}</td>
+      <td>${vote.deadline.replace("T", " ").substring(0, 16)}</td>
+      <td>마감됨</td>
+      <td>${controlButtons}</td>
+    `;
+
+        endedBody.appendChild(row);
     }
 
     function deleteVote(voteId) {
